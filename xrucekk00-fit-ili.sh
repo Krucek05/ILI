@@ -6,6 +6,57 @@ SIZE_MB=200
 MOUNT="/var/www/html/ukol"
 REPO="/etc/yum.repos.d/ukol.repo"
 
+
+# ---- cleanup support ----
+cleanup() {
+  echo "Cleaning ukol setup"
+
+  # 1) Unmount if mounted
+  if mountpoint -q "$MOUNT"; then
+    echo " - Unmounting $MOUNT"
+    umount -l "$MOUNT" || true
+  fi
+
+  # 2) Remove fstab entry/entries for this mount
+  if grep -q "/var/www/html/ukol" /etc/fstab 2>/dev/null; then
+    echo " - Removing /etc/fstab entries"
+    sed -i '\|/var/www/html/ukol|d' /etc/fstab
+    systemctl daemon-reload || true
+  fi
+
+  # 3) Detach any loop device backed by the image
+  for dev in $(losetup -j "$IMG" | cut -d: -f1); do
+    echo " - Detaching $dev"
+    losetup -d "$dev" || true
+  done
+
+  # 4) Remove the image
+  if [ -f "$IMG" ]; then
+    echo " - Deleting image $IMG"
+    rm -f "$IMG"
+  fi
+
+  # 5) Remove repo file
+  if [ -f "$REPO" ]; then
+    echo " - Removing repo file $REPO"
+    rm -f "$REPO"
+  fi
+
+  # 6) Clean repo dir (only if not mounted)
+  if [ -d "$MOUNT" ] && ! mountpoint -q "$MOUNT"; then
+    echo " - Cleaning $MOUNT directory"
+    rm -rf "$MOUNT"/*
+  fi
+
+  echo "Cleanup done."
+}
+
+# Call cleanup and exit if requested
+if [ "${1:-}" = "-clean" ] || [ "${1:-}" = "--clean" ]; then
+  cleanup
+  exit 0
+fi
+
 # needed packages
 echo "Installing neccesarry packages"
 echo "Please wait..." 
