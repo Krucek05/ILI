@@ -6,7 +6,7 @@
 
 ## 📋 Overview
 
-This project is a **mid-semester assignment** focused on Linux system administration and automation. The goal is to create a comprehensive Bash script that demonstrates proficiency in:
+This project is a **mid-semester assignment** focused on Linux system administration. The goal is to create a comprehensive Bash script that demonstrates proficiency in:
 
 - **Storage Management** (loop devices, filesystems)
 - **Package Management** (YUM repositories)
