@@ -17,21 +17,25 @@ dd if=/dev/zero of="$IMG" bs=1M count="$SIZE_MB" status=none
 
 # 2) Create loop device
 echo "2) Creating loop device for ukol.img"
-losetup -f --show /var/tmp/ukol.img
-echo created loop device /dev/loop0
+LOOP_NAME="$(losetup -f --show "$IMG")"
+echo "created loop device $LOOP_NAME"
 
 # 3) Create ext4 filesystem on loop device
 echo "3) Creating ext4 filesystem"
-mkfs.ext4 /dev/loop0
+mkfs.ext4 -F "$LOOP_NAME"  >/dev/null
 
 # 4) Configure /etc/fstab for automatic mount (using loop device)
 echo "4) Updating /etc/fstab for automatic mount"
 mkdir -p "$MOUNT"
-echo "/dev/loop0  $MOUNT  ext4  defaults  0 0" >> /etc/fstab
+sed -i '/\/var\/www\/html\/ukol/d' /etc/fstab
+ENTRY="$IMG  $MOUNT  ext4  loop,defaults,nofail  0 0"
+grep -qF "$ENTRY" /etc/fstab || printf "%s\n" "$ENTRY" >> /etc/fstab
+
 
 # 5) Mount filesystem to /var/www/html/ukol
 echo "5) Mounting filesystem to $MOUNT"
-mount -p "$MOUNT"
+mount -a
+mountpoint -q "$MOUNT" && echo "   .. mounted" || { echo "   .. mount FAILED"; exit 1; }
 
 # 6) Download given packages into repository directory
 echo "6) Downloading packages into $MOUNT"
