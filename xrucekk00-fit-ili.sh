@@ -7,9 +7,14 @@ MOUNT="/var/www/html/ukol"
 REPO="/etc/yum.repos.d/ukol.repo"
 
 
+
+# For cleaning run : ./xrucekk00-fit-ili.sh -clean
+# Not guaranteed it works perfectly
+# Made for my own purpose and mainly for debugging
+
 # ---- cleanup support ----
 cleanup() {
-  echo "Cleaning ukol setup"
+  echo "Cleaning setup"
 
   # 1) Unmount if mounted
   if mountpoint -q "$MOUNT"; then
@@ -81,12 +86,12 @@ mkdir -p "$MOUNT"
 sed -i '/\/var\/www\/html\/ukol/d' /etc/fstab
 ENTRY="$IMG  $MOUNT  ext4  loop,defaults,nofail  0 0"
 grep -qF "$ENTRY" /etc/fstab || printf "%s\n" "$ENTRY" >> /etc/fstab
-
+systemctl daemon-reload
 
 # 5) Mount filesystem to /var/www/html/ukol
 echo "5) Mounting filesystem to $MOUNT"
 mount -a
-mountpoint -q "$MOUNT" && echo "   .. mounted" || { echo "   .. mount FAILED"; exit 1; }
+mountpoint -q "$MOUNT" && echo "Mounted" || { echo "Mount FAILED"; exit 1; }
 
 # 6) Download given packages into repository directory
 echo "6) Downloading packages into $MOUNT"
@@ -136,57 +141,6 @@ fi
 
 # 13) Show info about packages from 'ukol' only
 echo "13) Showing info about available packages from 'ukol' only"
-yum --disablerepo="*" --enablerepo="ukol" info available || true
+dnf -q --disablerepo="*" --enablerepo="ukol" list available || true
 
 echo "All tasks done"
-
-
-# ---- cleanup support ----
-cleanup() {
-  echo "Cleaning ukol setup"
-
-  # 1) Unmount if mounted
-  if mountpoint -q "$MOUNT"; then
-    echo " - Unmounting $MOUNT"
-    umount -l "$MOUNT" || true
-  fi
-
-  # 2) Remove fstab entry/entries for this mount
-  if grep -q "/var/www/html/ukol" /etc/fstab 2>/dev/null; then
-    echo " - Removing /etc/fstab entries"
-    sed -i '\|/var/www/html/ukol|d' /etc/fstab
-    systemctl daemon-reload || true
-  fi
-
-  # 3) Detach any loop device backed by the image
-  for dev in $(losetup -j "$IMG" | cut -d: -f1); do
-    echo " - Detaching $dev"
-    losetup -d "$dev" || true
-  done
-
-  # 4) Remove the image
-  if [ -f "$IMG" ]; then
-    echo " - Deleting image $IMG"
-    rm -f "$IMG"
-  fi
-
-  # 5) Remove repo file
-  if [ -f "$REPO" ]; then
-    echo " - Removing repo file $REPO"
-    rm -f "$REPO"
-  fi
-
-  # 6) Clean repo dir (only if not mounted)
-  if [ -d "$MOUNT" ] && ! mountpoint -q "$MOUNT"; then
-    echo " - Cleaning $MOUNT directory"
-    rm -rf "$MOUNT"/*
-  fi
-
-  echo "Cleanup done."
-}
-
-# Call cleanup and exit if requested
-if [ "${1:-}" = "-clean" ] || [ "${1:-}" = "--clean" ]; then
-  cleanup
-  exit 0
-fi
